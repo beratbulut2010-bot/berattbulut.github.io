@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turboprop Motoru</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%); min-height: 100vh; }
+        .start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .start-content { text-align: center; max-width: 600px; }
+        .start-title { font-size: 48px; color: #1a5490; margin-bottom: 20px; font-weight: bold; }
+        .start-info { background: rgba(255,255,255,0.8); border: 3px solid #1a5490; border-radius: 12px; padding: 20px; margin: 20px 0; color: #333; font-size: 16px; }
+        .level-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 30px 0; }
+        .level-btn { padding: 20px; font-size: 16px; border: 3px solid #1a5490; border-radius: 10px; background: rgba(255,255,255,0.6); color: #1a5490; cursor: pointer; transition: 0.3s; }
+        .level-btn.selected { background: #4A90E2; color: white; border-color: #00ff00; }
+        .btn { padding: 15px 30px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: linear-gradient(135deg, #00ff00, #00cc00); color: black; border: 2px solid #00ff00; }
+        .btn:hover { transform: scale(1.05); }
+        .game-wrapper { display: none; flex-direction: column; min-height: 100vh; }
+        .top-banner { background: linear-gradient(90deg, #ff0000, #ff6b00); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .timer-section { font-size: 24px; color: #00ff00; font-weight: bold; }
+        .level-indicator { text-align: center; padding: 10px; color: #1a5490; font-weight: bold; }
+        .game-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .motor-section { background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%); border: 4px solid #4A90E2; border-radius: 15px; padding: 30px; margin-bottom: 30px; position: relative; }
+        .cloud { position: absolute; background: white; border-radius: 100px; opacity: 0.7; }
+        .cloud1 { width: 100px; height: 40px; top: 10%; animation: float 20s infinite linear; }
+        .cloud2 { width: 120px; height: 45px; top: 25%; right: 0; animation: float 25s infinite linear reverse; }
+        .cloud3 { width: 90px; height: 35px; top: 45%; animation: float 30s infinite linear; }
+        @keyframes float { from { transform: translateX(-150%); } to { transform: translateX(110vw); } }
+        .motor-title { text-align: center; font-size: 24px; color: #1a5490; margin-bottom: 20px; position: relative; z-index: 10; }
+        #motorCanvas { width: 100%; max-width: 600px; display: block; margin: 0 auto 30px; position: relative; z-index: 10; }
+        .slots-section { background: rgba(255,255,255,0.1); padding: 20px; margin-top: 20px; position: relative; z-index: 10; }
+        .slots-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        .motor-slot { height: 100px; background: rgba(255,255,255,0.15); border: 3px dashed #4A90E2; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; }
+        .motor-slot:hover:not(.filled) { background: rgba(74,144,226,0.3); }
+        .motor-slot.filled { background: rgba(76,175,80,0.2); border-color: #4CAF50; border-style: solid; }
+        .motor-slot.error { animation: shake 0.4s; background: rgba(244,67,54,0.2); }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .parts-section { background: linear-gradient(135deg, #1a1a3e 0%, #0f0f23 100%); border: 4px solid #ffaa00; border-radius: 15px; padding: 25px; margin: 0 10px 20px 10px; }
+        .parts-title { text-align: center; font-size: 20px; color: #ffaa00; margin-bottom: 15px; font-weight: bold; }
+        .parts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+        .drag-part { background: linear-gradient(135deg, #ff6b00, #ffaa00); border: 3px solid white; border-radius: 10px; padding: 12px; cursor: grab; text-align: center; font-weight: bold; color: black; min-height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 13px; transition: 0.3s; }
+        .drag-part:hover:not(.placed) { transform: scale(1.08); }
+        .drag-part.placed { opacity: 0.4; background: #666; cursor: not-allowed; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #0f0f23; border: 3px solid #00ffff; border-radius: 15px; padding: 40px; text-align: center; max-width: 500px; color: white; }
+        .modal-title { font-size: 32px; margin-bottom: 20px; font-weight: bold; }
+        .modal-message { font-size: 18px; margin-bottom: 30px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .info-modal { text-align: left; }
+        .info-content h3 { color: #00ffff; margin-top: 15px; margin-bottom: 8px; }
+        @media (max-width: 768px) {
+            .level-selector { grid-template-columns: 1fr; }
+            .parts-container { grid-template-columns: repeat(2, 1fr); }
+            .slots-grid { grid-template-columns: repeat(2, 1fr); }
+            .motor-section { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="start-screen" id="startScreen">
+        <div class="start-content">
+            <div class="start-title">🚁 TURBOPROP</div>
+            <div class="start-info">
+                <p>🔧 Parçaları doğru yerlere sürükle</p>
+                <p>⏱ Verilen süre içinde tamamla</p>
+            </div>
+            <div class="level-selector">
+                <button class="level-btn selected" onclick="selectLevel(1)">L1 - 90sn</button>
+                <button class="level-btn" onclick="selectLevel(2)">L2 - 75sn</button>
+                <button class="level-btn" onclick="selectLevel(3)">L3 - 60sn</button>
+            </div>
+            <button class="btn" onclick="startGame()" style="width: 100%; padding: 20px; font-size: 18px;">🚀 BAŞLA</button>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="gameContainer">
+        <div class="top-banner">
+            <div>⚠ ACİL GÖREV: Motoru tamamla!</div>
+            <div class="timer-section">⏳ <span id="timer">60</span>s</div>
+            <button onclick="showInfo()" style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer;">ℹ</button>
+        </div>
+
+        <div class="level-indicator" id="levelIndicator">LEVEL 1</div>
+
+        <div class="game-content">
+            <div class="motor-section">
+                <div class="cloud cloud1"></div>
+                <div class="cloud cloud2"></div>
+                <div class="cloud cloud3"></div>
+                <div class="motor-title">⚙ MOTOR</div>
+                <svg id="motorCanvas" viewBox="0 0 1000 350" xmlns="http://www.w3.org/2000/svg"></svg>
+                <div class="slots-section">
+                    <div style="text-align: center; color: #1a5490; margin-bottom: 15px; font-weight: bold;">Parçaları buraya koy:</div>
+                    <div class="slots-grid" id="motorSlots"></div>
+                </div>
+            </div>
+
+            <div class="parts-section">
+                <div class="parts-title">🧩 PARÇALAR</div>
+                <div class="parts-container" id="partsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="successModal">
+        <div class="modal-content">
+            <div class="modal-title" style="color: #00ff00;">✅ TAMAMLANDI!</div>
+            <div class="modal-message">Motor monte edildi! Süre: <span id="timeTaken">0</span>s</div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="goToNextLevel()">Sonraki ➡</button>
+                <button class="btn" onclick="backToStart()">Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="failModal">
+        <div class="modal-content">
+            <div class="modal-title" style="color: #ff0000;">❌ BAŞARIŞIZ!</div>
+            <div class="modal-message">Zaman doldu!</div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="retryLevel()">Tekrar Dene</button>
+                <button class="btn" onclick="backToStart()">Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="gameOverModal">
+        <div class="modal-content">
+            <div class="modal-title" style="color: #00ff00;">🏆 TAMAMLANDI!</div>
+            <div class="modal-message">Tebrikler! Tüm seviyeleri başardın!</div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="backToStart()">Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="infoModal">
+        <div class="modal-content info-modal">
+            <div class="modal-title">ℹ BİLGİ</div>
+            <div class="info-content">
+                <h3>🎮 OYUN KURALLARI</h3>
+                <p>✓ Parçaları boş alanlara sürükle</p>
+                <p>✓ Doğru yerleştirme = yeşil</p>
+                <p>✓ Zaman bitmeden tamamla</p>
+                <h3>⚙ TURBOPROP MOTORU</h3>
+                <p>Yüksek verimli motor sistemi. Pervane, kompresör, yanma odası ve türbin ile çalışır.</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeInfo()" style="width: 100%; margin-top: 20px;">KAPAT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gameState = {
+            currentLevel: 1,
+            timeLeft: 60,
+            timerInterval: null,
+            gameActive: false,
+            placedParts: {}
+        };
+
+        const levelsData = {
+            1: {
+                name: 'Temel',
+                time: 90,
+                parts: [
+                    { id: 'propeller', name: 'PERVANE', emoji: '🔵' },
+                    { id: 'compressor', name: 'KOMPRESÖR', emoji: '🟢' },
+                    { id: 'turbine', name: 'TÜRBİN', emoji: '🔴' }
+                ],
+                slots: [
+                    { id: 'slot1', correctPart: 'propeller' },
+                    { id: 'slot2', correctPart: 'compressor' },
+                    { id: 'slot3', correctPart: 'turbine' }
+                ]
+            },
+            2: {
+                name: 'Orta',
+                time: 75,
+                parts: [
+                    { id: 'propeller', name: 'PERVANE', emoji: '🔵' },
+                    { id: 'compressor', name: 'KOMPRESÖR', emoji: '🟢' },
+                    { id: 'turbine', name: 'TÜRBİN', emoji: '🔴' },
+                    { id: 'gearbox', name: 'DİŞLİ', emoji: '🟡' },
+                    { id: 'combustor', name: 'YANMA', emoji: '🟣' }
+                ],
+                slots: [
+                    { id: 'slot1', correctPart: 'propeller' },
+                    { id: 'slot2', correctPart: 'compressor' },
+                    { id: 'slot3', correctPart: 'combustor' },
+                    { id: 'slot4', correctPart: 'turbine' },
+                    { id: 'slot5', correctPart: 'gearbox' }
+                ]
+            },
+            3: {
+                name: 'Profesyonel',
+                time: 60,
+                parts: [
+                    { id: 'propeller', name: 'PERVANE', emoji: '🔵' },
+                    { id: 'compressor', name: 'KOMPRESÖR', emoji: '🟢' },
+                    { id: 'turbine', name: 'TÜRBİN', emoji: '🔴' },
+                    { id: 'gearbox', name: 'DİŞLİ', emoji: '🟡' },
+                    { id: 'combustor', name: 'YANMA', emoji: '🟣' },
+                    { id: 'fuel_injector', name: 'YAKIT', emoji: '🟠' },
+                    { id: 'turbine_blades', name: 'KANAT', emoji: '⚪' },
+                    { id: 'sensors', name: 'SENSÖR', emoji: '🔷' }
+                ],
+                slots: [
+                    { id: 'slot1', correctPart: 'propeller' },
+                    { id: 'slot2', correctPart: 'compressor' },
+                    { id: 'slot3', correctPart: 'combustor' },
+                    { id: 'slot4', correctPart: 'turbine' },
+                    { id: 'slot5', correctPart: 'turbine_blades' },
+                    { id: 'slot6', correctPart: 'gearbox' },
+                    { id: 'slot7', correctPart: 'fuel_injector' },
+                    { id: 'slot8', correctPart: 'sensors' }
+                ]
+            }
+        };
+
+        function drawMotor(level) {
+            const canvas = document.getElementById('motorCanvas');
+            canvas.innerHTML = '';
+            if (level === 1) {
+                canvas.innerHTML = `<circle cx="100" cy="175" r="70" fill="none" stroke="#FFD700" stroke-width="3"/><circle cx="100" cy="175" r="60" fill="none" stroke="#FFD700" stroke-width="2"/><line x1="30" y1="175" x2="170" y2="175" stroke="#FFD700" stroke-width="2"/><line x1="100" y1="105" x2="100" y2="245" stroke="#FFD700" stroke-width="2"/><ellipse cx="280" cy="175" rx="80" ry="90" fill="none" stroke="#4A90E2" stroke-width="3"/><path d="M 200 130 Q 230 120 260 125 Q 280 115 300 125 Q 320 120 340 130" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 200 160 Q 230 150 260 155 Q 280 145 300 155 Q 320 150 340 160" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 200 190 Q 230 180 260 185 Q 280 175 300 185 Q 320 180 340 190" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 200 220 Q 230 210 260 215 Q 280 205 300 215 Q 320 210 340 220" fill="none" stroke="#2E5C8A" stroke-width="2"/><rect x="350" y="120" width="100" height="110" fill="none" stroke="#FF6B6B" stroke-width="3" rx="8"/><path d="M 360 140 L 440 140" stroke="#FF6B6B" stroke-width="2"/><path d="M 360 160 L 440 160" stroke="#FF6B6B" stroke-width="2"/><path d="M 360 180 L 440 180" stroke="#FF6B6B" stroke-width="2"/><path d="M 360 200 L 440 200" stroke="#FF6B6B" stroke-width="2"/><circle cx="550" cy="175" r="75" fill="none" stroke="#00D9FF" stroke-width="3"/><path d="M 550 100 L 550 250" stroke="#00D9FF" stroke-width="2" stroke-dasharray="5,5"/><line x1="475" y1="175" x2="625" y2="175" stroke="#00D9FF" stroke-width="2"/><circle cx="550" cy="175" r="50" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 550 125 L 530 165 L 570 165 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 550 225 L 530 185 L 570 185 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 625 175 L 750 175" stroke="#888" stroke-width="4"/><path d="M 625 160 L 750 150" stroke="#888" stroke-width="3"/><path d="M 625 190 L 750 200" stroke="#888" stroke-width="3"/><line x1="100" y1="175" x2="625" y2="175" stroke="#333" stroke-width="3" stroke-dasharray="4,3"/>`;
+            } else if (level === 2) {
+                canvas.innerHTML = `<circle cx="80" cy="175" r="65" fill="none" stroke="#FFD700" stroke-width="3"/><circle cx="80" cy="175" r="55" fill="none" stroke="#FFD700" stroke-width="2"/><line x1="15" y1="175" x2="145" y2="175" stroke="#FFD700" stroke-width="2"/><line x1="80" y1="110" x2="80" y2="240" stroke="#FFD700" stroke-width="2"/><ellipse cx="250" cy="175" rx="75" ry="85" fill="none" stroke="#4A90E2" stroke-width="3"/><path d="M 175 135 Q 210 125 245 130 Q 265 120 285 130 Q 310 125 325 135" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 175 160 Q 210 150 245 155 Q 265 145 285 155 Q 310 150 325 160" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 175 185 Q 210 175 245 180 Q 265 170 285 180 Q 310 175 325 185" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 175 210 Q 210 200 245 205 Q 265 195 285 205 Q 310 200 325 210" fill="none" stroke="#2E5C8A" stroke-width="2"/><rect x="330" y="115" width="95" height="120" fill="none" stroke="#FF6B6B" stroke-width="3" rx="8"/><path d="M 342 135 L 418 135" stroke="#FF6B6B" stroke-width="2"/><path d="M 342 155 L 418 155" stroke="#FF6B6B" stroke-width="2"/><path d="M 342 175 L 418 175" stroke="#FF6B6B" stroke-width="2"/><path d="M 342 195 L 418 195" stroke="#FF6B6B" stroke-width="2"/><path d="M 342 215 L 418 215" stroke="#FF6B6B" stroke-width="2"/><circle cx="530" cy="175" r="70" fill="none" stroke="#00D9FF" stroke-width="3"/><path d="M 530 105 L 530 245" stroke="#00D9FF" stroke-width="2" stroke-dasharray="5,5"/><line x1="460" y1="175" x2="600" y2="175" stroke="#00D9FF" stroke-width="2"/><circle cx="530" cy="175" r="45" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 530 130 L 510 160 L 550 160 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 530 220 L 510 190 L 550 190 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><rect x="650" y="140" width="80" height="70" fill="none" stroke="#9C27B0" stroke-width="3" rx="5"/><circle cx="665" cy="160" r="8" fill="none" stroke="#9C27B0" stroke-width="2"/><circle cx="690" cy="175" r="8" fill="none" stroke="#9C27B0" stroke-width="2"/><circle cx="720" cy="165" r="8" fill="none" stroke="#9C27B0" stroke-width="2"/><path d="M 665 168 L 690 183" stroke="#9C27B0" stroke-width="1"/><path d="M 600 175 L 650 175" stroke="#888" stroke-width="4"/><path d="M 730 160 L 850 140" stroke="#888" stroke-width="3"/><path d="M 730 190 L 850 210" stroke="#888" stroke-width="3"/><line x1="80" y1="175" x2="600" y2="175" stroke="#333" stroke-width="3" stroke-dasharray="4,3"/>`;
+            } else {
+                canvas.innerHTML = `<circle cx="70" cy="175" r="60" fill="none" stroke="#FFD700" stroke-width="3"/><circle cx="70" cy="175" r="50" fill="none" stroke="#FFD700" stroke-width="2"/><line x1="10" y1="175" x2="130" y2="175" stroke="#FFD700" stroke-width="2"/><line x1="70" y1="115" x2="70" y2="235" stroke="#FFD700" stroke-width="2"/><circle cx="70" cy="175" r="35" fill="none" stroke="#FFD700" stroke-width="1"/><ellipse cx="230" cy="175" rx="70" ry="80" fill="none" stroke="#4A90E2" stroke-width="3"/><path d="M 160 140 Q 190 130 225 135 Q 245 125 265 135 Q 290 130 300 140" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 160 160 Q 190 150 225 155 Q 245 145 265 155 Q 290 150 300 160" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 160 180 Q 190 170 225 175 Q 245 165 265 175 Q 290 170 300 180" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 160 200 Q 190 190 225 195 Q 245 185 265 195 Q 290 190 300 200" fill="none" stroke="#2E5C8A" stroke-width="2"/><path d="M 160 220 Q 190 210 225 215 Q 245 205 265 215 Q 290 210 300 220" fill="none" stroke="#2E5C8A" stroke-width="2"/><rect x="310" y="110" width="90" height="130" fill="none" stroke="#FF6B6B" stroke-width="3" rx="8"/><path d="M 325 130 L 395 130" stroke="#FF6B6B" stroke-width="2"/><path d="M 325 150 L 395 150" stroke="#FF6B6B" stroke-width="2"/><path d="M 325 170 L 395 170" stroke="#FF6B6B" stroke-width="2"/><path d="M 325 190 L 395 190" stroke="#FF6B6B" stroke-width="2"/><path d="M 325 210 L 395 210" stroke="#FF6B6B" stroke-width="2"/><circle cx="350" cy="170" r="5" fill="#FFB6C1"/><circle cx="380" cy="170" r="5" fill="#FFB6C1"/><circle cx="510" cy="175" r="70" fill="none" stroke="#00D9FF" stroke-width="3"/><path d="M 510 105 L 510 245" stroke="#00D9FF" stroke-width="2" stroke-dasharray="5,5"/><line x1="440" y1="175" x2="580" y2="175" stroke="#00D9FF" stroke-width="2"/><circle cx="510" cy="175" r="50" fill="none" stroke="#00D9FF" stroke-width="2"/><circle cx="510" cy="175" r="30" fill="none" stroke="#00D9FF" stroke-width="1"/><path d="M 510 145 L 525 175 L 510 165 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 535 175 L 520 190 L 525 175 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 510 205 L 495 175 L 510 185 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><path d="M 485 175 L 500 160 L 495 175 Z" fill="none" stroke="#00D9FF" stroke-width="2"/><rect x="490" y="95" width="40" height="25" fill="none" stroke="#FF1493" stroke-width="2" rx="3"/><circle cx="500" cy="107" r="3" fill="#FF1493"/><circle cx="515" cy="107" r="3" fill="#FF1493"/><rect x="630" y="135" width="90" height="80" fill="none" stroke="#9C27B0" stroke-width="3" rx="5"/><circle cx="650" cy="155" r="10" fill="none" stroke="#9C27B0" stroke-width="2"/><circle cx="685" cy="175" r="10" fill="none" stroke="#9C27B0" stroke-width="2"/><circle cx="715" cy="165" r="10" fill="none" stroke="#9C27B0" stroke-width="2"/><path d="M 650 155 L 685 175" stroke="#9C27B0" stroke-width="1"/><path d="M 685 175 L 715 165" stroke="#9C27B0" stroke-width="1"/><path d="M 660 160 L 675 170" stroke="#9C27B0" stroke-width="1"/><path d="M 640 210 L 660 220 L 680 215 L 700 220 L 720 215" fill="none" stroke="#8B4513" stroke-width="2" stroke-dasharray="3,2"/><path d="M 580 170 L 630 170" stroke="#888" stroke-width="4"/><path d="M 720 155 L 900 130" stroke="#888" stroke-width="3"/><path d="M 720 195 L 900 220" stroke="#888" stroke-width="3"/><path d="M 900 130 L 930 120" stroke="#999" stroke-width="2"/><path d="M 900 220 L 930 230" stroke="#999" stroke-width="2"/><line x1="70" y1="175" x2="580" y2="175" stroke="#333" stroke-width="3" stroke-dasharray="4,3"/>`;
+            }
+        }
+
+        function selectLevel(level) {
+            gameState.currentLevel = level;
+            document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'flex';
+            const levelData = levelsData[gameState.currentLevel];
+            gameState.timeLeft = levelData.time;
+            gameState.gameActive = true;
+            gameState.placedParts = {};
+            document.getElementById('levelIndicator').textContent = `LEVEL ${gameState.currentLevel} - ${levelData.name}`;
+            drawMotor(gameState.currentLevel);
+            renderParts();
+            renderSlots();
+            startTimer();
+        }
+
+        function startTimer() {
+            if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                document.getElementById('timer').textContent = gameState.timeLeft;
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    gameState.gameActive = false;
+                    document.getElementById('failModal').classList.add('active');
+                }
+            }, 1000);
+        }
+
+        function renderParts() {
+            const container = document.getElementById('partsContainer');
+            container.innerHTML = '';
+            const levelData = levelsData[gameState.currentLevel];
+            levelData.parts.forEach(part => {
+                const partEl = document.createElement('div');
+                partEl.className = 'drag-part';
+                partEl.draggable = true;
+                partEl.id = `part-${part.id}`;
+                partEl.dataset.partId = part.id;
+                partEl.innerHTML = `${part.emoji}<br>${part.name}`;
+                partEl.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', part.id);
+                    partEl.style.opacity = '0.6';
+                });
+                partEl.addEventListener('dragend', () => { partEl.style.opacity = '1'; });
+                container.appendChild(partEl);
+            });
+        }
+
+        function renderSlots() {
+            const container = document.getElementById('motorSlots');
+            container.innerHTML = '';
+            const levelData = levelsData[gameState.currentLevel];
+            levelData.slots.forEach(slot => {
+                const slotEl = document.createElement('div');
+                slotEl.className = 'motor-slot';
+                slotEl.id = slot.id;
+                slotEl.dataset.correctPart = slot.correctPart;
+                slotEl.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+                slotEl.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const partId = e.dataTransfer.getData('text/plain');
+                    if (partId === slot.correctPart) {
+                        const part = levelsData[gameState.currentLevel].parts.find(p => p.id === partId);
+                        slotEl.innerHTML = `${part.emoji}<br>${part.name}`;
+                        slotEl.classList.add('filled');
+                        document.getElementById(`part-${partId}`).classList.add('placed');
+                        gameState.placedParts[slot.id] = partId;
+                        if (Object.keys(gameState.placedParts).length === levelData.slots.length) {
+                            clearInterval(gameState.timerInterval);
+                            gameState.gameActive = false;
+                            document.getElementById('timeTaken').textContent = levelsData[gameState.currentLevel].time - gameState.timeLeft;
+                            setTimeout(() => { document.getElementById('successModal').classList.add('active'); }, 500);
+                        }
+                    } else {
+                        slotEl.classList.add('error');
+                        setTimeout(() => { slotEl.classList.remove('error'); }, 400);
+                    }
+                });
+                container.appendChild(slotEl);
+            });
+        }
+
+        function goToNextLevel() {
+            document.getElementById('successModal').classList.remove('active');
+            if (gameState.currentLevel < 3) {
+                gameState.currentLevel++;
+                document.getElementById('gameContainer').style.display = 'flex';
+                startGame();
+            } else {
+                document.getElementById('gameContainer').style.display = 'none';
+                document.getElementById('gameOverModal').classList.add('active');
+            }
+        }
+
+        function retryLevel() {
+            document.getElementById('failModal').classList.remove('active');
+            startGame();
+        }
+
+        function backToStart() {
+            clearInterval(gameState.timerInterval);
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('successModal').classList.remove('active');
+            document.getElementById('failModal').classList.remove('active');
+            document.getElementById('gameOverModal').classList.remove('active');
+            document.getElementById('startScreen').style.display = 'flex';
+            gameState.currentLevel = 1;
+            document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelector('.level-btn').classList.add('selected');
+        }
+
+        function showInfo() {
+            document.getElementById('infoModal').classList.add('active');
+        }
+
+        function closeInfo() {
+            document.getElementById('infoModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
